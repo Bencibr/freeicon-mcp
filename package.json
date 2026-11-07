@@ -1,0 +1,88 @@
+{
+  "name": "freeicon-mcp",
+  "version": "0.1.3",
+  "description": "Free icons MCP server — search, download & generate SVG icons from 15 sources (Iconify, iconfont.cn, Lucide, Tabler, MDI, Heroicons, Font Awesome, Icons8, Octicons, Remix, Boxicons, Iconoir) via Model Context Protocol for AI tools like Claude, Cursor & Windsurf",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "freeicon": "dist/index.js"
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "login": "node dist/login-server.js",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Ben <benci@oksu.club>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bencibr/freeicon-mcp.git"
+  },
+  "homepage": "https://github.com/Bencibr/freeicon-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Bencibr/freeicon-mcp/issues"
+  },
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "icon",
+    "icons",
+    "iconfont",
+    "iconfont-cn",
+    "free-icons",
+    "freeicon",
+    "svg",
+    "svg-icons",
+    "lucide",
+    "tabler-icons",
+    "material-design-icons",
+    "mdi",
+    "heroicons",
+    "font-awesome",
+    "bootstrap-icons",
+    "octicons",
+    "remix-icon",
+    "boxicons",
+    "iconoir",
+    "iconify",
+    "icons8",
+    "simple-icons",
+    "design",
+    "ui",
+    "ai",
+    "ai-tools",
+    "claude",
+    "cursor",
+    "windsurf",
+    "codex",
+    "chatgpt",
+    "qoder",
+    "kimi",
+    "minimax",
+    "zcode",
+    "workbuddy",
+    "trae"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "fast-xml-parser": "^4.5.0",
+    "playwright": "^1.49.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

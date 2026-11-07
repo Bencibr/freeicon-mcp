@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "freeicon": {
+      "command": "node",
+      "args": ["/Users/sp/workspace/iconfont/dist/index.js"],
+      "type": "stdio"
+    }
+  }
+}

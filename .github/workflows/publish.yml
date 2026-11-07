@@ -1,0 +1,39 @@
+name: Publish to npm
+
+# 发版后自动发布到 npm——保证 GitHub Release 与 npm 版本号始终同步
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install & build
+        run: npm install && npm run build
+
+      - name: Verify version consistency (package.json = tag)
+        if: github.event_name == 'release'
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          TAG="${GITHUB_REF_NAME#v}"
+          if [ "$VER" != "$TAG" ]; then
+            echo "::error::package.json ($VER) 与 tag ($TAG) 版本不一致"
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
