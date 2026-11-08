@@ -24,6 +24,7 @@
 | 多色插画 | `i_search(keyword, type="illustration")` → `i_download_svg(id)` |
 | 照片 / 艺术品 | `i_download(source="openverse" / "artic" / "cma", id)` |
 | 网站 favicon / logo | `i_site_icon(url="apple.com")`（自动解析 + 三级兜底）|
+| 场景插画配图 | `ia_generate(scene="...", style="flat")` → AI 按专业规范画 480×360 场景卡（14 种风格）|
 | 项目 logo / 品牌标识 | `lg_generate(project="freeicon", style="tech")` → N 个创意方向，AI 逐个绘制并校验 |
 | 搜不到 → 生成 | `g_generate(description)` → AI 画 → `g_validate(svg)` |
 
@@ -34,6 +35,7 @@
 - 🖼 **多色插画**：iconfont 插画库原始多色 SVG、博物馆 CC0 高清艺术品
 - 🌐 **网站图标提取**：给一个 URL，抓取 favicon / apple-touch-icon / SVG logo（三级兜底，SVG/位图智能交付）
 - 🪄 **AI 图标生成**：Lucide 官方设计规范 + 安全校验（拒绝脚本注入等恶意内容）
+- 🖌 **场景插画**：14 种专业扁平插画风格（人物/道具/构图/失败模式全规范，源自 mengto/skills MIT）
 - 🏷 **品牌 Logo 设计**：2-6 个截然不同的创意方向 + 品牌级校验（自包含/文字回退/小尺寸可辨识）
 - 📦 **双渠道发布**：npm + GitHub Packages 镜像（Release 触发自动发布）
 - 🔓 **零门槛**：全源免 API key，仅 iconfont.cn 需登录
@@ -91,7 +93,7 @@ opencode 等其它客户端配置 → [docs/guide.md](docs/guide.md#一安装与
 | 文档 | 内容 |
 |------|------|
 | [docs/sources.md](docs/sources.md) | 数据源完整列表：协议、登录、署名、id 格式、交付格式 |
-| [docs/tools.md](docs/tools.md) | 30 个工具完整参考与 id 格式速查 |
+| [docs/tools.md](docs/tools.md) | 32 个工具完整参考与 id 格式速查 |
 | [docs/guide.md](docs/guide.md) | 安装配置、iconfont 登录、工作流、使用须知、故障排查 |
 
 ## English

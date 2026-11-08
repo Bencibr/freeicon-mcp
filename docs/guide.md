@@ -108,6 +108,14 @@ i_site_icon(url="x.com", fallback="google")   # 直接走 Google 服务
 ```
 三级兜底；SVG 返文本（可再进 `g_validate` 改色），位图返高清 data URI；结果附全部候选清单。
 
+### H. 插画场景卡片（免登录，14 种风格）
+```
+ia_generate(scene="设计师向同事展示线框图", style="flat")
+# AI 按该风格的完整规范画 480×360 SVG 场景卡
+ia_validate(svg=...)   # 校验（安全/自包含/画布/密度）
+```
+风格：flat / bold-pop / halftone-line / ink-sketch / isometric-mono / one-line / vintage-emblem 等 14 种。
+
 ### 下载结果怎么用
 SVG 文本 / data URI 直接让 AI 写入文件即可：
 ```
@@ -153,7 +161,7 @@ npx tsx src/sources/test.ts   # 全源冒烟测试
 源码结构：
 ```
 src/
-  index.ts              # MCP 入口，注册 30 个工具
+  index.ts              # MCP 入口，注册 32 个工具
   login-server.ts       # 反向代理登录服务（抓 cookie）
   api/                  # iconfont 接口（搜索/详情/下载/插画/图标库）
   sources/

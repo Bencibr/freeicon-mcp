@@ -85,6 +85,7 @@ import { findSiteIcons, fetchIcon, fetchGoogleFavicon, normalizeSiteUrl } from '
 import type { SiteIconCandidate } from './utils/site-icon.js';
 import { generateLogoSpec, checkExternalRefs, checkTextFallback, checkStrokeLegibility, checkSemanticGroups } from './utils/logo.js';
 import type { LogoFormat } from './utils/logo.js';
+import { listIllustrationStyles, generateIllustrationSpec, checkIllustrationSvg } from './utils/illustration.js';
 import { apiRequest } from './api/client.js';
 import { AuthError } from './types/iconfont.js';
 import { checkIconfontReachable, getPackageVersion, getLatestVersion } from './utils/network.js';
@@ -143,6 +144,7 @@ const GUIDE_TEXT = `# freeicon-mcp — AI 图标与素材工作站
 | 公共领域高清艺术品 | AIC（IIIF 任意宽度）/ CMA |
 | 网站 favicon / logo | \`i_site_icon(url="apple.com")\` — 解析页面图标声明，SVG/位图智能交付 |
 | 项目 logo / 品牌标识 | \`lg_generate(project="freeicon", style="tech")\` — N 个截然不同的创意方向 + 品牌级校验 |
+| 场景插画配图 | `ia_generate(scene="设计师展示线框图", style="flat")` — 14 种专业风格，480×360 场景卡 |
 | 全都搜不到 → 生成 | \`g_generate(description)\` → AI 画 → \`g_validate(svg)\` |
 | iconfont 项目图标清单 | \`i_list_project_icons(symbolUrl)\` |
 
@@ -199,7 +201,7 @@ ov_register(email="you@example.com")       # 接口自动注册+保存凭据，2
 ov_login(clientId, clientSecret)           # 已有凭据时用这个
 \`\`\`
 
-## 工具一览（30 个）
+## 工具一览（32 个）
 - **多源融合**：\`i_sources\`（源状态表）、\`i_search_all\`、\`i_download\`
 - **网站图标**：\`i_site_icon\`（favicon / apple-touch-icon / SVG logo 提取）
 - **iconfont**：\`i_login\`/\`i_login_wait\`/\`i_login_with_cookie\`/\`i_login_with_password\`/\`i_login_send_sms\`/\`i_login_with_sms\`/\`i_check_auth\`、\`i_search\`（icon/illustration）、\`i_download_svg\`、\`i_detail\`、\`i_list_collections\`、\`i_list_project_icons\`
@@ -1247,6 +1249,58 @@ server.tool(
       if (warnings.length) lines.push('', '⚠️ 告警（建议迭代）:', ...warnings.map((w) => `- ${w}`));
       if (infos.length) lines.push('', 'ℹ️ 提示:', ...infos.map((w) => `- ${w}`));
       if (!warnings.length) lines.push('', '✓ 通过全部 logo 规范检查。');
+      return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+    } catch (err) {
+      return { content: [{ type: 'text' as const, text: handleToolError(err) }] };
+    }
+  }
+);
+
+// ============================================================
+// Illustration scene-card tools (14 flat-illustration styles)
+// ============================================================
+
+server.tool(
+  'ia_generate',
+  'Get a complete drawing spec for a flat-illustration scene card (480x360 SVG) in one of 14 professional styles (flat cut-paper, bold pop, halftone, ink sketch, isometric, one-line, vintage emblem, ...). The spec carries exact palettes, character proportions, composition rules and failure modes from the original methodology. The AI (you) draws the SVG per spec, validates with ia_validate, then delivers.',
+  {
+    scene: z.string().describe('Who is doing what, with which hero prop — e.g. "a designer presenting a wireframe on a big screen to a teammate"'),
+    style: z.string().describe('One of 14 styles: flat / bold-pop / flat-with-black / framed-panel / grainy-gouache / halftone-line / ink-sketch / isometric-mono / line-interior / one-line / outlined-cartoon / teal-spot / two-colour-brush / vintage-emblem'),
+    size: z.number().optional().default(480).describe('Card width in px (240-960, default 480; height = 4:3)'),
+  },
+  async ({ scene, style, size }) => {
+    try {
+      return {
+        content: [{
+          type: 'text' as const,
+          text: generateIllustrationSpec(style, scene, size ?? 480),
+        }],
+      };
+    } catch (err) {
+      return { content: [{ type: 'text' as const, text: handleToolError(err) }] };
+    }
+  }
+);
+
+server.tool(
+  'ia_validate',
+  'Validate an illustration scene-card SVG drawn per ia_generate: security filter, self-contained check (no <image>/external refs — illustrations must be pure vector), canvas 4:3 check, composition density hints. Returns normalized SVG with warnings.',
+  {
+    svg: z.string().describe('The illustration SVG markup (root element must be <svg>)'),
+    size: z.number().optional().default(480).describe('Expected card width in px (default 480)'),
+  },
+  async ({ svg: raw, size }) => {
+    try {
+      const svg = raw.trim();
+      const { issues } = checkIllustrationSvg(svg, size ?? 480);
+      const errors = issues.filter((i) => i.level === 'error');
+      const warnings = issues.filter((i) => i.level === 'warning');
+      const infos = issues.filter((i) => i.level === 'info');
+      const lines = [svg];
+      if (errors.length) lines.push('', '❌ 错误（必须修复）:', ...errors.map((i) => `- ${i.message}`));
+      if (warnings.length) lines.push('', '⚠️ 告警（建议迭代）:', ...warnings.map((i) => `- ${i.message}`));
+      if (infos.length) lines.push('', 'ℹ️ 提示:', ...infos.map((i) => `- ${i.message}`));
+      if (!errors.length && !warnings.length) lines.push('', '✓ 通过全部插画规范检查。');
       return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
     } catch (err) {
       return { content: [{ type: 'text' as const, text: handleToolError(err) }] };
