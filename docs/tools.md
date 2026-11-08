@@ -1,4 +1,4 @@
-# 工具参考（32 个）
+# 工具参考（33 个）
 
 ## 多源融合（免登录）
 
@@ -13,6 +13,12 @@
 | 工具 | 参数 | 说明 |
 |------|------|------|
 | `i_site_icon` | `url`, `size?`, `source?` (auto/link/inline/google) | 三层提取：声明图标 → 页面内嵌 SVG Logo（1:1 矢量还原，携带样式上下文）→ Google 兜底；SVG 返文本，位图返高清 data URI，列出全部候选 |
+
+## 位图转矢量（免登录）
+
+| 工具 | 参数 | 说明 |
+|------|------|------|
+| `i_bitmap_to_svg` | `path`, `color_mode?` (color/binary), `max_colors?`, `max_dimension?`, `allow_photo?` | 位图矢量化（PNG/JPEG）：多色分层描摹或二值模式；**输入对象感知**——照片类（色彩熵高）自动拒绝（转 SVG 会又大又失真），扁平图形/图标类正常处理 |
 
 ## Logo 设计（免登录）
 

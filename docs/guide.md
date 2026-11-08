@@ -116,6 +116,13 @@ ia_validate(svg=...)   # 校验（安全/自包含/画布/密度）
 ```
 风格：flat / bold-pop / halftone-line / ink-sketch / isometric-mono / one-line / vintage-emblem 等 14 种。
 
+### I. 位图转矢量（免登录，PNG/JPEG）
+```
+i_bitmap_to_svg(path="/path/to/icon.png", color_mode="color")   # 多色分层矢量化
+i_bitmap_to_svg(path="/path/to/text.png", color_mode="binary")  # 二值（图标/文字）
+```
+照片类图片自动拒绝（色彩熵高，转 SVG 会又大又失真）；扁平图形/图标类效果最佳。
+
 ### 下载结果怎么用
 SVG 文本 / data URI 直接让 AI 写入文件即可：
 ```
@@ -161,7 +168,7 @@ npx tsx src/sources/test.ts   # 全源冒烟测试
 源码结构：
 ```
 src/
-  index.ts              # MCP 入口，注册 32 个工具
+  index.ts              # MCP 入口，注册 33 个工具
   login-server.ts       # 反向代理登录服务（抓 cookie）
   api/                  # iconfont 接口（搜索/详情/下载/插画/图标库）
   sources/

@@ -203,7 +203,7 @@ ov_register(email="you@example.com")       # 接口自动注册+保存凭据，2
 ov_login(clientId, clientSecret)           # 已有凭据时用这个
 \`\`\`
 
-## 工具一览（32 个）
+## 工具一览（33 个）
 - **多源融合**：\`i_sources\`（源状态表）、\`i_search_all\`、\`i_download\`
 - **网站图标**：\`i_site_icon\`（favicon / apple-touch-icon / SVG logo 提取）
 - **iconfont**：\`i_login\`/\`i_login_wait\`/\`i_login_with_cookie\`/\`i_login_with_password\`/\`i_login_send_sms\`/\`i_login_with_sms\`/\`i_check_auth\`、\`i_search\`（icon/illustration）、\`i_download_svg\`、\`i_detail\`、\`i_list_collections\`、\`i_list_project_icons\`

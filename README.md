@@ -36,6 +36,7 @@
 - 🌐 **网站图标提取**：给一个 URL，抓取 favicon / apple-touch-icon / SVG logo（三级兜底，SVG/位图智能交付）
 - 🪄 **AI 图标生成**：Lucide 官方设计规范 + 安全校验（拒绝脚本注入等恶意内容）
 - 🖌 **场景插画**：14 种专业扁平插画风格（人物/道具/构图/失败模式全规范，源自 mengto/skills MIT）
+- 🔄 **位图转矢量**：PNG/JPEG 一键转分层 SVG（照片类自动识别拒绝）
 - 🏷 **品牌 Logo 设计**：2-6 个截然不同的创意方向 + 品牌级校验（自包含/文字回退/小尺寸可辨识）
 - 📦 **双渠道发布**：npm + GitHub Packages 镜像（Release 触发自动发布）
 - 🔓 **零门槛**：全源免 API key，仅 iconfont.cn 需登录
@@ -93,7 +94,7 @@ opencode 等其它客户端配置 → [docs/guide.md](docs/guide.md#一安装与
 | 文档 | 内容 |
 |------|------|
 | [docs/sources.md](docs/sources.md) | 数据源完整列表：协议、登录、署名、id 格式、交付格式 |
-| [docs/tools.md](docs/tools.md) | 32 个工具完整参考与 id 格式速查 |
+| [docs/tools.md](docs/tools.md) | 33 个工具完整参考与 id 格式速查 |
 | [docs/guide.md](docs/guide.md) | 安装配置、iconfont 登录、工作流、使用须知、故障排查 |
 
 ## English
