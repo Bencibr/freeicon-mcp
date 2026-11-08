@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, type ChildProcess } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -86,6 +87,7 @@ import type { SiteIconCandidate, InlineSvgLogo } from './utils/site-icon.js';
 import { generateLogoSpec, checkExternalRefs, checkTextFallback, checkStrokeLegibility, checkSemanticGroups } from './utils/logo.js';
 import type { LogoFormat } from './utils/logo.js';
 import { listIllustrationStyles, generateIllustrationSpec, checkIllustrationSvg } from './utils/illustration.js';
+import { readImageFile, analyzeBitmap, downscale, bitmapToSvg } from './utils/bitmap-svg.js';
 import { apiRequest } from './api/client.js';
 import { AuthError } from './types/iconfont.js';
 import { checkIconfontReachable, getPackageVersion, getLatestVersion } from './utils/network.js';
@@ -1193,6 +1195,51 @@ server.tool(
       }
 
       lines.push('', '❌ 未找到可用图标（当前 source 已禁用 Google 兜底）。');
+      return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+    } catch (err) {
+      return { content: [{ type: 'text' as const, text: handleToolError(err) }] };
+    }
+  }
+);
+
+server.tool(
+  'i_bitmap_to_svg',
+  'Vectorize a flat graphic image (icon / logo / flat illustration / screenshot of simple shapes) into a layered color SVG. Input object awareness: PHOTO-type images (high color entropy) are rejected \u2014 photo-to-SVG produces huge blurry files; keep photos as PNG/WebP. Only convert images you have rights to. Binary mode gives a clean 2-color result for icons/logos.',
+  {
+    path: z.string().describe('Local image file path (PNG/JPEG, flat graphic \u2014 not a photo)'),
+    color_mode: z.enum(['color', 'binary']).optional().default('color').describe('"color" = multi-color layered tracing (default); "binary" = 2-color clean vector for icons/text'),
+    max_colors: z.number().optional().default(16).describe('Color layer count for color mode (2-64, default 16)'),
+    max_dimension: z.number().optional().default(1024).describe('Downscale guard: input larger than this is reduced before tracing (default 1024)'),
+    allow_photo: z.boolean().optional().default(false).describe('Allow photo-like images through (not recommended \u2014 output will be huge and blurry)'),
+  },
+  async ({ path: imgPath, color_mode, max_colors, max_dimension, allow_photo }) => {
+    try {
+      if (!fs.existsSync(imgPath)) throw new Error(`文件不存在: ${imgPath}`);
+      const img = readImageFile(imgPath);
+      const analysis = analyzeBitmap(img.data, img.width, img.height);
+
+      const lines: string[] = [
+        `🖼 ${imgPath}`,
+        `尺寸: ${img.width}×${img.height} | 采样量化色数: ${analysis.uniqueQuantized} (${analysis.photoLike ? '照片类' : '扁平图形类'})`,
+      ];
+
+      if (analysis.photoLike && !allow_photo) {
+        lines.push(
+          '',
+          '❌ 该图片是**照片类**（色彩熵高）——照片转 SVG 会产出巨大的失真文件。',
+          '建议：保留原 PNG/WebP 格式；如确需矢量化，请传入 allow_photo=true 并接受失真。',
+        );
+        return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+      }
+
+      const result = bitmapToSvg(
+        { width: img.width, height: img.height, data: img.data },
+        color_mode ?? 'color',
+        max_colors ?? 16,
+      );
+
+      lines.push('', `✓ 已矢量化: ${(result.bytes / 1024).toFixed(1)}KB SVG（${result.width}×${result.height}，色层数 ${result.tracedColors}）`, result.svg);
+      lines.push('', 'ℹ️ 矢量 SVG 可无限缩放、可二次编辑；如需改色，直接修改 path 的 fill 值。');
       return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
     } catch (err) {
       return { content: [{ type: 'text' as const, text: handleToolError(err) }] };
