@@ -79,8 +79,8 @@ function parseMaxDimension(sizes?: string): number {
   return max;
 }
 
-/** Fetch page HTML and collect icon candidates (+ /favicon.ico fallback) */
-export async function findSiteIcons(pageUrl: string): Promise<{ title?: string; candidates: SiteIconCandidate[] }> {
+/** 抓取页面 HTML（UA/超时/大小限制统一处理），供解析函数复用 */
+export async function fetchPageHtml(pageUrl: string): Promise<string> {
   const res = await fetch(pageUrl, {
     headers: { 'User-Agent': UA_BROWSER, Accept: 'text/html,application/xhtml+xml' },
     signal: AbortSignal.timeout(20000),
@@ -89,7 +89,11 @@ export async function findSiteIcons(pageUrl: string): Promise<{ title?: string; 
   if (!res.ok) throw new Error(`Failed to fetch page: HTTP ${res.status}`);
   const ct = res.headers.get('content-type') || '';
   if (!ct.includes('html')) throw new Error(`URL is not an HTML page (${ct || 'unknown content-type'})`);
-  const html = (await res.text()).slice(0, MAX_HTML_BYTES);
+  return (await res.text()).slice(0, MAX_HTML_BYTES);
+}
+
+/** 从页面 HTML 解析 <link> 图标声明（导出：handler 复用同一份 HTML）*/
+export function parseLinkIconsFromHtml(html: string, pageUrl: string): { title?: string; candidates: SiteIconCandidate[] } {
   const title = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]?.trim();
   const candidates = parseLinkIcons(html, pageUrl);
   // /favicon.ico convention fallback (deduped below if already declared)
@@ -100,6 +104,12 @@ export async function findSiteIcons(pageUrl: string): Promise<{ title?: string; 
     }
   } catch { /* ignore */ }
   return { title, candidates };
+}
+
+/** Fetch page HTML and collect icon candidates (+ /favicon.ico fallback) */
+export async function findSiteIcons(pageUrl: string): Promise<{ title?: string; candidates: SiteIconCandidate[] }> {
+  const html = await fetchPageHtml(pageUrl);
+  return parseLinkIconsFromHtml(html, pageUrl);
 }
 
 export interface FetchedIcon {
@@ -157,4 +167,75 @@ export async function fetchGoogleFavicon(siteUrl: string, size: number): Promise
   const buf = Buffer.from(await res.arrayBuffer());
   const mime = sniffMime(buf) || 'image/png';
   return { mime, dataUri: `data:${mime};base64,${buf.toString('base64')}`, bytes: buf.length, url };
+}
+
+// ── 内嵌 SVG Logo 提取（1:1 还原，方法论源自 illustration-calibrate skill）──
+
+export interface InlineSvgLogo {
+  index: number;
+  svg: string;          // 独立可用的完整 SVG（含携带的 style/defs）
+  viewBox?: string;
+  bytes: number;
+  classDeps: string[];  // 依赖的 CSS 类（style 已内嵌携带）
+}
+
+/** 安全清理：拒绝脚本/事件/外部图片（保留矢量内容）*/
+function sanitizeSvgMarkup(markup: string): string | null {
+  const lower = markup.toLowerCase();
+  if (lower.includes('<script') || lower.includes('<foreignobject')) return null;
+  if (/javascript:/i.test(lower)) return null;
+  if (/<image[\s>]/.test(lower)) return null;
+  const cleaned = markup.replace(/\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  return cleaned;
+}
+
+/**
+ * 从页面 HTML 提取全部内嵌 <svg> 元素，逐一还原为独立 SVG。
+ * 1:1 还原要点（实测教训）：
+ * - 携带页面 <style> 中该 SVG 依赖的 class 定义（否则 class="cls-x" 全部失效）
+ * - 补缺失的 xmlns / xmlns:xlink
+ * - 剥离 <script>/事件属性/<foreignObject>/<image>
+ */
+export function extractInlineSvgs(html: string): InlineSvgLogo[] {
+  const out: InlineSvgLogo[] = [];
+  // 页面全部 <style> 块（用于携带 class 定义）
+  const pageStyles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n');
+  const re = /<svg\b([^>]*)>((?:(?!<\/svg>)[\s\S])*)<\/svg>/gi;
+  let m; let index = 0;
+  while ((m = re.exec(html)) !== null) {
+    index += 1;
+    const attrs = m[1];
+    let inner = m[2];
+    const viewBox = attrs.match(/viewBox\s*=\s*["']([^"']+)["']/i)?.[1];
+    const w = attrs.match(/\bwidth\s*=\s*["']([^"']+)["']/i)?.[1];
+    const h = attrs.match(/\bheight\s*=\s*["']([^"']+)["']/i)?.[1];
+
+    // 该 SVG 内部用到的 class → 从页面样式里抽取对应规则（1:1 还原样式上下文）
+    const usedClasses = Array.from(inner.matchAll(/class="([^"]+)"/g))
+      .flatMap((c) => c[1].split(/\s+/)).filter(Boolean);
+    let styleDefs = '';
+    const carried: string[] = [];
+    for (const cls of usedClasses) {
+      const esc = cls.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      for (const sm of pageStyles.matchAll(new RegExp(`[^{}\\n]*\\.${esc}\\b[^{}]*\\{[^}]*\\}`, 'g'))) {
+        styleDefs += sm[0].trim() + '\n';
+        carried.push(cls);
+      }
+    }
+
+    // 安全清理
+    inner = inner.replace(/<script[\s\S]*?<\/script>/gi, '');
+    inner = inner.replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '');
+    inner = inner.replace(/\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    if (/<image[\s>]/i.test(inner)) continue; // 位图内嵌的跳过（要纯矢量）
+
+    let svgAttrs = attrs;
+    if (!/xmlns=/.test(svgAttrs)) svgAttrs += ' xmlns="http://www.w3.org/2000/svg"';
+    if (/xlink:href/.test(inner) && !/xmlns:xlink/.test(svgAttrs)) svgAttrs += ' xmlns:xlink="http://www.w3.org/1999/xlink"';
+    const styleBlock = styleDefs ? `<defs><style>${styleDefs}</style></defs>` : '';
+    const svg = `<svg ${svgAttrs}>${styleBlock}${inner}</svg>`;
+
+    out.push({ index, svg, viewBox, bytes: svg.length, classDeps: carried });
+  }
+  return out;
 }

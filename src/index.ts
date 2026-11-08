@@ -81,8 +81,8 @@ import { downloadSvg } from './api/download.js';
 import { searchCollections } from './api/collections.js';
 import { parseSymbolUrl } from './parser/symbol-parser.js';
 import { searchIllustrations, downloadIllustration, getCachedIllustration } from './api/illustration.js';
-import { findSiteIcons, fetchIcon, fetchGoogleFavicon, normalizeSiteUrl } from './utils/site-icon.js';
-import type { SiteIconCandidate } from './utils/site-icon.js';
+import { parseLinkIconsFromHtml, fetchIcon, fetchGoogleFavicon, normalizeSiteUrl, extractInlineSvgs, fetchPageHtml } from './utils/site-icon.js';
+import type { SiteIconCandidate, InlineSvgLogo } from './utils/site-icon.js';
 import { generateLogoSpec, checkExternalRefs, checkTextFallback, checkStrokeLegibility, checkSemanticGroups } from './utils/logo.js';
 import type { LogoFormat } from './utils/logo.js';
 import { listIllustrationStyles, generateIllustrationSpec, checkIllustrationSvg } from './utils/illustration.js';
@@ -1118,62 +1118,81 @@ server.tool(
 
 server.tool(
   'i_site_icon',
-  'Extract a website\u2019s icon (favicon / apple-touch-icon / SVG logo) from its URL. Parses the page\u2019s declared icons, picks the best one, downloads it: SVG icons return as text, raster icons as base64 data URI. Falls back to /favicon.ico and Google\u2019s favicon service automatically. Also returns every candidate found so alternative sizes/styles can be fetched.',
+  'Extract a website\u2019s icon or logo from its URL. Three tiers: 1) declared icons (<link rel=icon> / apple-touch-icon) \u2014 SVG returns as text, raster as data URI; 2) inline <svg> logos in the page markup \u2014 1:1 vector restoration (style context carried); 3) Google favicon service fallback. Also lists every candidate found.',
   {
     url: z.string().describe('Website URL, e.g. "https://www.apple.com/" or "apple.com" (https:// auto-prepended)'),
-    size: z.number().optional().default(256).describe('Preferred icon size in px for the fallback service and candidate ranking (default 256)'),
-    fallback: z.enum(['auto', 'page-only', 'google']).optional().default('auto').describe('"auto" = page icons first, Google favicon service as fallback; "page-only" = no fallback; "google" = skip page parsing'),
+    size: z.number().optional().default(256).describe('Preferred icon size in px (default 256)'),
+    source: z.enum(['auto', 'link', 'inline', 'google']).optional().default('auto').describe('"auto" = declared icons, then inline SVG logos, then Google service; "link" / "inline" / "google" = restrict to one tier'),
   },
-  async ({ url, size, fallback }) => {
+  async ({ url, size, source }) => {
     try {
       const siteUrl = normalizeSiteUrl(url);
       const lines: string[] = [`🌐 ${siteUrl}`];
 
-      const googleOnly = fallback === 'google';
-      let candidates: SiteIconCandidate[] = [];
-      if (!googleOnly) {
+      // 一次抓取页面 HTML（三层共用；google 模式不需要）
+      let html: string | null = null;
+      if (source !== 'google') {
         try {
-          const found = await findSiteIcons(siteUrl);
-          if (found.title) lines.push(`页面标题: ${found.title}`);
-          candidates = found.candidates;
+          html = await fetchPageHtml(siteUrl);
         } catch (e) {
-          lines.push(`页面解析: ${e instanceof Error ? e.message : String(e)}`);
+          lines.push(`页面抓取: ${e instanceof Error ? e.message : String(e)}`);
         }
       }
 
-      // 按尺寸偏好重排：优先接近/超过请求尺寸的高分候选
-      const ranked = [...candidates].sort((a, b) => {
-        const aFit = a.dimension >= size ? a.score + 20 : a.score;
-        const bFit = b.dimension >= size ? b.score + 20 : b.score;
-        return bFit - aFit;
-      });
-
-      for (const cand of ranked.slice(0, 3)) {
-        try {
-          const icon = await fetchIcon(cand);
-          if (icon.svgText) {
-            lines.push('', `✓ 已下载 SVG 图标（${cand.rel}，${(icon.bytes / 1024).toFixed(1)}KB）`, icon.svgText);
-          } else {
-            lines.push('', `✓ 已下载图标（${cand.rel}${cand.sizes ? ` ${cand.sizes}` : ''}，${icon.mime}，${(icon.bytes / 1024).toFixed(1)}KB）`, icon.dataUri!);
-          }
-          lines.push('', 'ℹ️ 光栅图为 data URI（解码存 .png/.ico）；SVG 直接存 .svg。');
-
-          if (ranked.length > 1) {
-            lines.push('', '其他候选:');
-            ranked.filter((c) => c.url !== icon.url).forEach((c, i) =>
-              lines.push(`${i + 1}. [${c.rel}] ${c.url}${c.sizes ? ` (${c.sizes})` : ''}${c.type ? ` ${c.type}` : ''}`));
-          }
-          return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
-        } catch { /* 尝试下一个候选 */ }
+      // ① <link> 声明图标
+      let candidates: SiteIconCandidate[] = [];
+      if ((source === 'auto' || source === 'link') && html) {
+        const found = parseLinkIconsFromHtml(html, siteUrl);
+        if (found.title) lines.push(`页面标题: ${found.title}`);
+        candidates = found.candidates;
+        const ranked = [...candidates].sort((a, b) => {
+          const aFit = a.dimension >= size ? a.score + 20 : a.score;
+          const bFit = b.dimension >= size ? b.score + 20 : b.score;
+          return bFit - aFit;
+        });
+        for (const cand of ranked.slice(0, 3)) {
+          try {
+            const icon = await fetchIcon(cand);
+            if (icon.svgText) {
+              lines.push('', `✓ 已下载声明图标（${cand.rel}，${(icon.bytes / 1024).toFixed(1)}KB）`, icon.svgText);
+            } else {
+              lines.push('', `✓ 已下载图标（${cand.rel}${cand.sizes ? ` ${cand.sizes}` : ''}，${icon.mime}，${(icon.bytes / 1024).toFixed(1)}KB）`, icon.dataUri!);
+            }
+            lines.push('', 'ℹ️ 光栅图为 data URI（解码存 .png/.ico）；SVG 直接存 .svg。');
+            if (ranked.length > 1) {
+              lines.push('', '其他候选:');
+              ranked.filter((c) => c.url !== icon.url).forEach((c, i) =>
+                lines.push(`${i + 1}. [${c.rel}] ${c.url}${c.sizes ? ` (${c.sizes})` : ''}${c.type ? ` ${c.type}` : ''}`));
+            }
+            return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+          } catch { /* 下一个候选 */ }
+        }
+        lines.push('声明图标均不可用，尝试内嵌 SVG Logo…');
       }
 
-      if (fallback !== 'page-only') {
+      // ② 内嵌 SVG Logo（1:1 矢量还原，携带样式上下文）
+      if (html && (source === 'auto' || source === 'inline')) {
+        const logos = extractInlineSvgs(html);
+        if (logos.length) {
+          lines.push('', `✓ 内嵌 SVG Logo ×${logos.length}（1:1 矢量还原，携带样式上下文）`, logos[0].svg);
+          if (logos.length > 1) {
+            lines.push('', '其余内嵌 SVG:');
+            logos.slice(1).forEach((lg, i) =>
+              lines.push(`${i + 2}. [${lg.viewBox || '无 viewBox'}] ${(lg.bytes / 1024).toFixed(1)}KB`));
+          }
+          return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
+        }
+        lines.push('页面无内嵌 SVG Logo。');
+      }
+
+      // ③ Google 兜底（auto / google）
+      if (source === 'auto' || source === 'google') {
         const icon = await fetchGoogleFavicon(siteUrl, size);
-        lines.push('', `✓ 已通过 Google favicon 服务下载（${icon.mime}，${(icon.bytes / 1024).toFixed(1)}KB）`, icon.dataUri!);
+        lines.push('', `✓ Google favicon 服务（${icon.mime}，${(icon.bytes / 1024).toFixed(1)}KB）`, icon.dataUri!);
         return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
       }
 
-      lines.push('', '❌ 该页面没有可用的图标候选（fallback=page-only 已禁用兜底）。');
+      lines.push('', '❌ 未找到可用图标（当前 source 已禁用 Google 兜底）。');
       return { content: [{ type: 'text' as const, text: lines.join('\n') }] };
     } catch (err) {
       return { content: [{ type: 'text' as const, text: handleToolError(err) }] };
