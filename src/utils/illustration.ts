@@ -26,7 +26,16 @@ const STYLE_META: Record<string, string> = {
   'teal-spot': '青绿色调 + 一处点睛色块的场景插画',
   'two-colour-brush': '双色彩刷：仅两种颜色完成全部形体与阴影',
   'vintage-emblem': '复古徽章/纹章式构图，衬线气质',
+  'line-minimal': '极简线描：白底 + 黑细线（2-3px 两种宽度）+ 单点缀色，留白率 >50%，人物无脸细节（源自 iconfont 真实插画反推）',
 };
+
+/** 从真实 iconfont 插画反推的通用校准规则（所有风格适用） */
+const CALIBRATED_RULES = [
+  '基线对齐：所有人物脚部、家具腿、道具底边的 y 坐标误差 ≤1px（实测真实插画全部精确对齐）',
+  '色板克制：整卡颜色 ≤6 种，点缀色仅 1 个（多则画面发花）',
+  '留白率 >50%：元素只占画面一半，其余留给呼吸空间',
+  '密度参考：完整场景 25-60 个矢量元素（实测 40-55 为佳）',
+];
 
 export function listIllustrationStyles(): string {
   return Object.keys(STYLE_META)
@@ -35,7 +44,30 @@ export function listIllustrationStyles(): string {
 }
 
 export function generateIllustrationSpec(style: string, scene: string, size: number): string {
-  const spec = ILLUSTRATION_SPECS[style];
+  let spec = ILLUSTRATION_SPECS[style];
+  if (style === 'line-minimal' && !spec) {
+    // 线描极简：源自 iconfont 真实插画坐标级反推
+    spec = `## The look in one sentence
+White background, thin black line-art (only 2px and 3px stroke widths, round caps/joins), one single accent colour (#FBB040), square-dominant geometry, over 50% whitespace, blank-face figures, everything standing on one shared baseline (±1px).
+
+## Palette
+白底（不画背景 rect）/ 黑线 #1a1a1a / 点缀黄橙 #FBB040（全卡唯一彩色）/ 深棕 #3f3325 / 米色 #e6dcd1
+
+## Line and fill
+- 描边只用 2px（次要）与 3px（主体）两档，round 线帽 + round 连接，禁止混用其它宽度
+- 形体用闭合线描表达，不做填充（点缀色只给 1-2 个小色块，如椅子/帽子）
+- 无渐变、无阴影、无地面色块
+
+## Characters
+- 人物无脸细节（blank face）：眼睛鼻子全部省略
+- 发色深棕 #3f3325，白色长裙或简单衣形
+- 头身比 1:6.5–7；腿细长（臀到脚跟约占身高 50%）
+
+## Composition
+- 完整场景 40-55 个矢量元素：path 20+（人物/异形）、polygon 15（桌腿/书立/三角）、rect 14（桌面/柜子/书）、circle ≤2（时钟类）
+- 构图铁律：所有脚、桌腿、柜腿的底边 y 坐标误差 ≤1px
+- 留白率 >50%；点缀色只给一件"呼应物"（如黄橙椅子）`;
+  }
   if (!spec) {
     const known = Object.keys(STYLE_META).join(', ');
     throw new Error(`未知风格 "${style}"。可用风格：${known}`);
@@ -57,6 +89,9 @@ export function generateIllustrationSpec(style: string, scene: string, size: num
 ## 该风格的完整绘制规范（逐条遵守，含色板 hex / 人物比例 / 构图 / 失败模式）
 
 ${spec}
+
+## 通用校准规则（源自真实插画反推，所有风格适用）
+${CALIBRATED_RULES.map((r) => '- ' + r).join('\n')}
 
 ## 流程
 1. 用一句话写清：谁、在做什么、哪个道具讲故事（480px 宽下必须一眼读出的笑点/姿态）
@@ -101,10 +136,10 @@ export function checkIllustrationSvg(svg: string, size: number): { issues: Illus
 
   // 构图密度软提示
   const elCount = (svg.match(/<(path|circle|rect|ellipse|line|polygon|polyline)\b/gi) || []).length;
-  if (elCount < 8) {
-    issues.push({ level: 'info', message: `矢量元素仅 ${elCount} 个——场景插画通常 ≥12 个元素（人物/道具/装饰/地面）` });
-  } else if (elCount > 400) {
-    issues.push({ level: 'info', message: `矢量元素 ${elCount} 个偏多——确认每处细节在卡片尺寸下仍有意义` });
+  if (elCount < 25) {
+    issues.push({ level: 'warning', message: `矢量元素仅 ${elCount} 个——完整场景实测 25-60 个（40-55 为佳），可能过于空疏` });
+  } else if (elCount > 120) {
+    issues.push({ level: 'info', message: `矢量元素 ${elCount} 个偏多——确认细节密度是否过高` });
   }
 
   return { issues };

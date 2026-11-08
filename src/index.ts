@@ -1265,7 +1265,7 @@ server.tool(
   'Get a complete drawing spec for a flat-illustration scene card (480x360 SVG) in one of 14 professional styles (flat cut-paper, bold pop, halftone, ink sketch, isometric, one-line, vintage emblem, ...). The spec carries exact palettes, character proportions, composition rules and failure modes from the original methodology. The AI (you) draws the SVG per spec, validates with ia_validate, then delivers.',
   {
     scene: z.string().describe('Who is doing what, with which hero prop — e.g. "a designer presenting a wireframe on a big screen to a teammate"'),
-    style: z.string().describe('One of 14 styles: flat / bold-pop / flat-with-black / framed-panel / grainy-gouache / halftone-line / ink-sketch / isometric-mono / line-interior / one-line / outlined-cartoon / teal-spot / two-colour-brush / vintage-emblem'),
+    style: z.string().describe('One of 15 styles: flat / bold-pop / flat-with-black / framed-panel / grainy-gouache / halftone-line / ink-sketch / isometric-mono / line-interior / one-line / outlined-cartoon / teal-spot / two-colour-brush / vintage-emblem / line-minimal (calibrated from real iconfont illustrations)'),
     size: z.number().optional().default(480).describe('Card width in px (240-960, default 480; height = 4:3)'),
   },
   async ({ scene, style, size }) => {
