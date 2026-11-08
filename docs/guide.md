@@ -101,12 +101,12 @@ lg_validate(svg=..., format="combination")   # 品牌级校验，按告警迭代
 ```
 规范源自 logo-designer 方法论：favicon 16–32px 可辨识测试、语义分组、自包含；combination 格式会提示从 `#icon` 组导出方形 favicon 变体。
 
-### G. 网站图标提取（免登录）
+### G. 网站图标提取（免登录，三层）
 ```
-i_site_icon(url="apple.com")        # 解析页面 favicon/apple-touch-icon/SVG logo
-i_site_icon(url="x.com", fallback="google")   # 直接走 Google 服务
+i_site_icon(url="apple.com")                  # 声明图标 → 内嵌 SVG Logo → Google 兜底
+i_site_icon(url="x.com", source="inline")     # 直接提取页面内嵌 SVG Logo（1:1 矢量还原）
 ```
-三级兜底；SVG 返文本（可再进 `g_validate` 改色），位图返高清 data URI；结果附全部候选清单。
+三层：页面 `<link>` 声明 → 内嵌 `<svg>` Logo（1:1 矢量还原，携带样式上下文）→ Google 兜底；SVG 返文本（可再进 `g_validate` 改色），位图返高清 data URI；结果附全部候选清单。
 
 ### H. 插画场景卡片（免登录，14 种风格）
 ```

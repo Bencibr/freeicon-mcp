@@ -130,7 +130,7 @@ function requireAuth(): string | null {
 
 const GUIDE_TEXT = `# freeicon-mcp — AI 图标与素材工作站
 
-**这个 MCP 能做什么**：让 AI 从 **19 个免费素材源**（合计百万级图标 + 1 亿+ CC 图片/艺术品）搜索并下载素材，覆盖 UI 图标、多色插画、品牌 logo、照片、艺术品；适配 Claude、Cursor、Codex、ChatGPT、Windsurf、Qoder、Kimi Code、MiniMax、ZCode、WorkBuddy、opencode 等主流客户端；搜不到时还能按规范**生成自定义 SVG 图标**并校验净化，支持**品牌 Logo 设计**（\`lg_generate\` 多方向创意简报 + \`lg_validate\` 品牌级校验）与**网站图标提取**（\`i_site_icon\`，favicon/apple-touch/SVG logo 三级兜底）。产出为可直接写入文件的 SVG 文本或图片 data URI，支持改色和任意尺寸。
+**这个 MCP 能做什么**：让 AI 从 **19 个免费素材源**（合计百万级图标 + 1 亿+ CC 图片/艺术品）搜索并下载素材，覆盖 UI 图标、多色插画、品牌 logo、照片、艺术品；适配 Claude、Cursor、Codex、ChatGPT、Windsurf、Qoder、Kimi Code、MiniMax、ZCode、WorkBuddy、opencode 等主流客户端；搜不到时还能按规范**生成自定义 SVG 图标**并校验净化，支持**品牌 Logo 设计**（\`lg_generate\` 多方向创意简报 + \`lg_validate\` 品牌级校验）与**网站图标提取**（\`i_site_icon\`，favicon/apple-touch/内嵌 SVG Logo 三层提取，1:1 矢量还原）。产出为可直接写入文件的 SVG 文本或图片 data URI，支持改色和任意尺寸。
 
 ## 场景速查（我要找 X）
 | 需求 | 做法 |
@@ -1172,7 +1172,7 @@ server.tool(
 
       // ② 内嵌 SVG Logo（1:1 矢量还原，携带样式上下文）
       if (html && (source === 'auto' || source === 'inline')) {
-        const logos = extractInlineSvgs(html);
+        const logos = extractInlineSvgs(html, { color: '#1a1a1a' });
         if (logos.length) {
           lines.push('', `✓ 内嵌 SVG Logo ×${logos.length}（1:1 矢量还原，携带样式上下文）`, logos[0].svg);
           if (logos.length > 1) {

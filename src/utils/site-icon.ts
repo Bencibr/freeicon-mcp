@@ -177,6 +177,8 @@ export interface InlineSvgLogo {
   viewBox?: string;
   bytes: number;
   classDeps: string[];  // 依赖的 CSS 类（style 已内嵌携带）
+  /** 品牌可能性评分（class/aria 线索），降序排列后返回 */
+  score: number;
 }
 
 /** 安全清理：拒绝脚本/事件/外部图片（保留矢量内容）*/
@@ -196,7 +198,9 @@ function sanitizeSvgMarkup(markup: string): string | null {
  * - 补缺失的 xmlns / xmlns:xlink
  * - 剥离 <script>/事件属性/<foreignObject>/<image>
  */
-export function extractInlineSvgs(html: string): InlineSvgLogo[] {
+export function extractInlineSvgs(html: string, opts: { color?: string } = {}): InlineSvgLogo[] {
+  const brandColor = opts.color || '#1a1a1a';
+  const candidates: Array<InlineSvgLogo & { order: number }> = [];
   const out: InlineSvgLogo[] = [];
   // 页面全部 <style> 块（用于携带 class 定义）
   const pageStyles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n');
@@ -206,6 +210,12 @@ export function extractInlineSvgs(html: string): InlineSvgLogo[] {
     index += 1;
     const attrs = m[1];
     let inner = m[2];
+    // 品牌可能性评分：aria-label / class 里的线索词
+    const ariaLabel = attrs.match(/aria-label\s*=\s*["']([^"']*)["']/i)?.[1] || '';
+    const clsAttr = attrs.match(/class\s*=\s*["']([^"']*)["']/i)?.[1] || '';
+    let score = 0;
+    if (/mark|logo|brand|wordmark|homepage/i.test(ariaLabel + ' ' + clsAttr)) score += 50;
+    if (/octicon-mark|logo-|brand-/i.test(clsAttr)) score += 20;
     const viewBox = attrs.match(/viewBox\s*=\s*["']([^"']+)["']/i)?.[1];
     const w = attrs.match(/\bwidth\s*=\s*["']([^"']+)["']/i)?.[1];
     const h = attrs.match(/\bheight\s*=\s*["']([^"']+)["']/i)?.[1];
@@ -229,13 +239,17 @@ export function extractInlineSvgs(html: string): InlineSvgLogo[] {
     inner = inner.replace(/\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
     if (/<image[\s>]/i.test(inner)) continue; // 位图内嵌的跳过（要纯矢量）
 
-    let svgAttrs = attrs;
+    // currentColor 落地为具体色（脱离页面后无继承色，否则独立渲染不可见）
+    let svgAttrs = attrs.replace(/\scolor\s*=\s*["'][^"']*["']/gi, ` color="${brandColor}"`);
+    inner = inner.replace(/currentColor/g, brandColor);
+    svgAttrs = svgAttrs.replace(/fill="currentColor"/gi, `fill="${brandColor}"`).replace(/stroke="currentColor"/gi, `stroke="${brandColor}"`);
     if (!/xmlns=/.test(svgAttrs)) svgAttrs += ' xmlns="http://www.w3.org/2000/svg"';
     if (/xlink:href/.test(inner) && !/xmlns:xlink/.test(svgAttrs)) svgAttrs += ' xmlns:xlink="http://www.w3.org/1999/xlink"';
     const styleBlock = styleDefs ? `<defs><style>${styleDefs}</style></defs>` : '';
     const svg = `<svg ${svgAttrs}>${styleBlock}${inner}</svg>`;
 
-    out.push({ index, svg, viewBox, bytes: svg.length, classDeps: carried });
+    candidates.push({ index, svg, viewBox, bytes: svg.length, classDeps: carried, score: score * 1000 - index, order: index });
   }
-  return out;
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates;
 }

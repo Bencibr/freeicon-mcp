@@ -12,7 +12,7 @@
 
 | 工具 | 参数 | 说明 |
 |------|------|------|
-| `i_site_icon` | `url`, `size?`, `fallback?` | 提取网站图标（favicon / apple-touch-icon / SVG logo）：解析页面声明 → 择优下载 → `/favicon.ico` → Google 服务三级兜底；SVG 返文本，位图返高清 data URI，三级兜底（页面声明 → /favicon.ico → Google 服务），并列出全部候选 |
+| `i_site_icon` | `url`, `size?`, `source?` (auto/link/inline/google) | 三层提取：声明图标 → 页面内嵌 SVG Logo（1:1 矢量还原，携带样式上下文）→ Google 兜底；SVG 返文本，位图返高清 data URI，列出全部候选 |
 
 ## Logo 设计（免登录）
 
