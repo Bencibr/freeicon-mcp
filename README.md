@@ -25,6 +25,7 @@
 | 照片 / 艺术品 | `i_download(source="openverse" / "artic" / "cma", id)` |
 | 网站 favicon / logo | `i_site_icon(url="apple.com")`（自动解析 + 三级兜底）|
 | 场景插画配图 | `ia_generate(scene="...", style="flat")` → AI 按专业规范画 480×360 场景卡（14 种风格）|
+| 位图转矢量 | `i_bitmap_to_svg(path="icon.png")`（PNG/JPEG → 分层 SVG，照片类自动拒绝）|
 | 项目 logo / 品牌标识 | `lg_generate(project="freeicon", style="tech")` → N 个创意方向，AI 逐个绘制并校验 |
 | 搜不到 → 生成 | `g_generate(description)` → AI 画 → `g_validate(svg)` |
 
