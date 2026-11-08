@@ -144,7 +144,7 @@ const GUIDE_TEXT = `# freeicon-mcp — AI 图标与素材工作站
 | 公共领域高清艺术品 | AIC（IIIF 任意宽度）/ CMA |
 | 网站 favicon / logo | \`i_site_icon(url="apple.com")\` — 解析页面图标声明，SVG/位图智能交付 |
 | 项目 logo / 品牌标识 | \`lg_generate(project="freeicon", style="tech")\` — N 个截然不同的创意方向 + 品牌级校验 |
-| 场景插画配图 | `ia_generate(scene="设计师展示线框图", style="flat")` — 14 种专业风格，480×360 场景卡 |
+| 场景插画配图 | \`ia_generate(scene="设计师展示线框图", style="flat")\` — 14 种专业风格，480×360 场景卡 |
 | 全都搜不到 → 生成 | \`g_generate(description)\` → AI 画 → \`g_validate(svg)\` |
 | iconfont 项目图标清单 | \`i_list_project_icons(symbolUrl)\` |
 
